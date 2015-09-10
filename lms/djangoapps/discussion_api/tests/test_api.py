@@ -652,6 +652,7 @@ class GetThreadListTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleSto
                 "editable_fields": ["abuse_flagged", "following", "voted"],
                 "has_endorsed": True,
                 "read": True,
+                "response_count": None,
             },
             {
                 "id": "test_thread_id_1",
@@ -685,6 +686,7 @@ class GetThreadListTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleSto
                 "editable_fields": ["abuse_flagged", "following", "voted"],
                 "has_endorsed": False,
                 "read": False,
+                "response_count": None,
             },
         ]
         self.assertEqual(
@@ -1402,7 +1404,8 @@ class CreateThreadTest(
             "non_endorsed_comment_list_url": None,
             "editable_fields": ["abuse_flagged", "following", "raw_body", "title", "topic_id", "type", "voted"],
             'read': False,
-            'has_endorsed': False
+            'has_endorsed': False,
+            "response_count": 0,
         }
         self.assertEqual(actual, expected)
         self.assertEqual(
@@ -1946,6 +1949,7 @@ class UpdateThreadTest(
             "editable_fields": ["abuse_flagged", "following", "raw_body", "title", "topic_id", "type", "voted"],
             'read': False,
             'has_endorsed': False,
+            "response_count": 0,
         }
         self.assertEqual(actual, expected)
         self.assertEqual(
@@ -2830,9 +2834,12 @@ class RetrieveThreadTest(
             "title": "Test Title",
             "body": "Test body",
             "created_at": "2015-05-29T00:00:00Z",
-            "updated_at": "2015-05-29T00:00:00Z"
+            "updated_at": "2015-05-29T00:00:00Z",
+
         })
-        cs_data.update(overrides or {})
+        overrides = overrides.copy() if overrides else {}
+        overrides.setdefault("resp_total", 2)
+        cs_data.update(overrides)
         self.register_get_thread_response(cs_data)
 
     def test_basic(self):
@@ -2863,7 +2870,8 @@ class RetrieveThreadTest(
             "read": False,
             "has_endorsed": False,
             "id": "test_thread",
-            "type": "discussion"
+            "type": "discussion",
+            "response_count": 2,
         }
         self.register_thread()
         self.assertEqual(get_thread(self.request, self.thread_id), expected_response_data)
@@ -2902,7 +2910,8 @@ class RetrieveThreadTest(
             "read": False,
             "has_endorsed": False,
             "id": "test_thread",
-            "type": "discussion"
+            "type": "discussion",
+            "response_count": 2,
         }
         non_author_user = UserFactory.create()  # pylint: disable=attribute-defined-outside-init
         self.register_get_user_response(non_author_user)
