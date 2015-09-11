@@ -9,6 +9,7 @@ Tests that CSV grade report generation works with unicode emails.
 import ddt
 from mock import Mock, patch
 import tempfile
+from openedx.core.djangoapps.course_groups import cohorts
 import unicodecsv
 from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
@@ -662,7 +663,7 @@ class TestProblemReportCohortedContent(TestReportMixin, ContentGroupTestCase, In
     """
     def setUp(self):
         super(TestProblemReportCohortedContent, self).setUp()
-        # contstruct cohorted problems to work on.
+        # construct cohorted problems to work on.
         self.add_course_content()
         vertical = ItemFactory.create(
             parent_location=self.problem_section.location,
@@ -681,21 +682,7 @@ class TestProblemReportCohortedContent(TestReportMixin, ContentGroupTestCase, In
             group_access={self.course.user_partitions[0].id: [self.course.user_partitions[0].groups[1].id]}
         )
 
-    def test_cohort_content(self):
-        self.submit_student_answer(self.alpha_user.username, u'Pröblem0', ['Option 1', 'Option 1'])
-        resp = self.submit_student_answer(self.alpha_user.username, u'Pröblem1', ['Option 1', 'Option 1'])
-        self.assertEqual(resp.status_code, 404)
-
-        resp = self.submit_student_answer(self.beta_user.username, u'Pröblem0', ['Option 1', 'Option 2'])
-        self.assertEqual(resp.status_code, 404)
-        self.submit_student_answer(self.beta_user.username, u'Pröblem1', ['Option 1', 'Option 2'])
-
-        with patch('instructor_task.tasks_helper._get_current_task'):
-            result = upload_problem_grade_report(None, None, self.course.id, None, 'graded')
-            self.assertDictContainsSubset(
-                {'action_name': 'graded', 'attempted': 4, 'succeeded': 4, 'failed': 0}, result
-            )
-
+    def _verify_rows(self):
         problem_names = [u'Homework 1: Problem - Pröblem0', u'Homework 1: Problem - Pröblem1']
         header_row = [u'Student ID', u'Email', u'Username', u'Final Grade']
         for problem in problem_names:
@@ -739,6 +726,64 @@ class TestProblemReportCohortedContent(TestReportMixin, ContentGroupTestCase, In
             )),
         ])
 
+    def test_cohort_content(self):
+        self.submit_student_answer(self.alpha_user.username, u'Pröblem0', ['Option 1', 'Option 1'])
+        resp = self.submit_student_answer(self.alpha_user.username, u'Pröblem1', ['Option 1', 'Option 1'])
+        self.assertEqual(resp.status_code, 404)
+
+        resp = self.submit_student_answer(self.beta_user.username, u'Pröblem0', ['Option 1', 'Option 2'])
+        self.assertEqual(resp.status_code, 404)
+        self.submit_student_answer(self.beta_user.username, u'Pröblem1', ['Option 1', 'Option 2'])
+
+        with patch('instructor_task.tasks_helper._get_current_task'):
+            result = upload_problem_grade_report(None, None, self.course.id, None, 'graded')
+            self.assertDictContainsSubset(
+                {'action_name': 'graded', 'attempted': 4, 'succeeded': 4, 'failed': 0}, result
+            )
+
+        problem_names = [u'Homework 1: Problem - Pröblem0', u'Homework 1: Problem - Pröblem1']
+        header_row = [u'Student ID', u'Email', u'Username', u'Final Grade']
+        for problem in problem_names:
+            header_row += [problem + ' (Earned)', problem + ' (Possible)']
+
+        self._verify_rows()
+
+    @patch('courseware.grades.MaxScoresCache.get',  Mock(return_value=1))
+    def test_cohort_content_with_maxcache(self):
+        # Course is cohorted
+        self.assertTrue(cohorts.is_course_cohorted(self.course.id))
+
+        # Verify user groups
+        self.assertEquals(
+            cohorts.get_cohort(self.alpha_user, self.course.id).id,
+            self.course.user_partitions[0].groups[0].id,
+            "alpha_user should be assigned to the correct cohort"
+        )
+        self.assertEquals(
+            cohorts.get_cohort(self.beta_user, self.course.id).id,
+            self.course.user_partitions[0].groups[1].id,
+            "beta_user should be assigned to the correct cohort"
+        )
+
+        # Verify user enrollment
+        self.assertTrue(CourseEnrollment.is_enrolled(self.alpha_user, self.course.id))
+        self.assertTrue(CourseEnrollment.is_enrolled(self.beta_user, self.course.id))
+
+        self.submit_student_answer(self.alpha_user.username, u'Pröblem0', ['Option 1', 'Option 1'])
+        resp = self.submit_student_answer(self.alpha_user.username, u'Pröblem1', ['Option 1', 'Option 1'])
+        self.assertEqual(resp.status_code, 404)
+
+        resp = self.submit_student_answer(self.beta_user.username, u'Pröblem0', ['Option 1', 'Option 2'])
+        self.assertEqual(resp.status_code, 404)
+        self.submit_student_answer(self.beta_user.username, u'Pröblem1', ['Option 1', 'Option 2'])
+
+        with patch('instructor_task.tasks_helper._get_current_task'):
+            result = upload_problem_grade_report(None, None, self.course.id, None, 'graded')
+            self.assertDictContainsSubset(
+                {'action_name': 'graded', 'attempted': 4, 'succeeded': 4, 'failed': 0}, result
+            )
+
+        self._verify_rows()
 
 @ddt.ddt
 class TestExecutiveSummaryReport(TestReportMixin, InstructorTaskCourseTestCase):
