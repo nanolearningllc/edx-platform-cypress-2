@@ -741,15 +741,14 @@ class TestProblemReportCohortedContent(TestReportMixin, ContentGroupTestCase, In
                 {'action_name': 'graded', 'attempted': 4, 'succeeded': 4, 'failed': 0}, result
             )
 
-        problem_names = [u'Homework 1: Problem - Pröblem0', u'Homework 1: Problem - Pröblem1']
-        header_row = [u'Student ID', u'Email', u'Username', u'Final Grade']
-        for problem in problem_names:
-            header_row += [problem + ' (Earned)', problem + ' (Possible)']
-
         self._verify_rows()
 
-    @patch('courseware.grades.MaxScoresCache.get',  Mock(return_value=1))
+    @patch('courseware.grades.MaxScoresCache.get', Mock(return_value=1))
     def test_cohort_content_with_maxcache(self):
+        """
+        Tests the cohoted course grading to test the scenario in which `max_scores_cache` is set for the course
+        problems.
+        """
         # Course is cohorted
         self.assertTrue(cohorts.is_course_cohorted(self.course.id))
 
