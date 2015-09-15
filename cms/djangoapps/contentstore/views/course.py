@@ -909,6 +909,8 @@ def settings_handler(request, course_key_string):
                 settings.FEATURES.get('ENABLE_MKTG_SITE', False)
             )
 
+            enrollment_editable = GlobalStaff().has_user(request.user) or not settings.FEATURES.get('IS_EDX_DOMAIN')
+
             short_description_editable = settings.FEATURES.get('EDITABLE_SHORT_DESCRIPTION', True)
             settings_context = {
                 'context_course': course_module,
@@ -924,6 +926,7 @@ def settings_handler(request, course_key_string):
                 'credit_eligibility_enabled': credit_eligibility_enabled,
                 'is_credit_course': False,
                 'show_min_grade_warning': False,
+                'enrollment_end_editable': enrollment_editable,
             }
             if prerequisite_course_enabled:
                 courses, in_process_course_actions = get_courses_accessible_to_user(request)

@@ -52,6 +52,9 @@ var DetailsView = ValidatingView.extend({
         });
         this.listenTo(this.licenseModel, 'change', this.handleLicenseChange);
 
+        // ensure that false is saved if passed, all others default to true
+        this.enrollmentEndEditable = options.enrollmentEndEditable !== false;
+
         if (options.showMinGradeWarning || false) {
             new NotificationView.Warning({
                 title: gettext("Course Credit Requirements"),
@@ -65,7 +68,7 @@ var DetailsView = ValidatingView.extend({
         this.setupDatePicker('start_date');
         this.setupDatePicker('end_date');
         this.setupDatePicker('enrollment_start');
-        this.setupDatePicker('enrollment_end');
+        this.setupDatePicker('enrollment_end', this.enrollmentEndEditable);
 
         this.$el.find('#' + this.fieldToSelectorMap['overview']).val(this.model.get('overview'));
         this.codeMirrorize(null, $('#course-overview')[0]);
@@ -131,12 +134,14 @@ var DetailsView = ValidatingView.extend({
         }, true));
     },
 
-    setupDatePicker: function (fieldName) {
+    setupDatePicker: function (fieldName, editable) {
         var cacheModel = this.model;
         var div = this.$el.find('#' + this.fieldToSelectorMap[fieldName]);
         var datefield = $(div).find("input.date");
         var timefield = $(div).find("input.time");
         var cachethis = this;
+        // ensure that false is saved if passed, all others default to true
+        var editable = editable !== false;
         var setfield = function () {
             var newVal = DateUtils.getDate(datefield, timefield),
                 oldTime = new Date(cacheModel.get(fieldName)).getTime();
@@ -173,6 +178,11 @@ var DetailsView = ValidatingView.extend({
         else {
             timefield.val('');
             datefield.val('');
+        }
+        // we must do all the work above to set the date, but if we can't edit it we destroy the pickers
+        if (!editable) {
+            datefield.datepicker('destroy');
+            timefield.timepicker('destroy');
         }
     },
 
